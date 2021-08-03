@@ -1,3 +1,17 @@
+--    Copyright 2021 MobSlicer152
+--
+--   Licensed under the Apache License, Version 2.0 (the "License");
+--   you may not use this file except in compliance with the License.
+--   You may obtain a copy of the License at
+--
+--       http://www.apache.org/licenses/LICENSE-2.0
+--
+--   Unless required by applicable law or agreed to in writing, software
+--   distributed under the License is distributed on an "AS IS" BASIS,
+--   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+--   See the License for the specific language governing permissions and
+--   limitations under the License.
+
 include "scripts/vs2022"
 
 -- Template for output folders
@@ -98,6 +112,9 @@ project "launcher"
 	cppdialect "C++20"
 	location "%{wks.location}/%{prj.name}"
 
+	-- Definitions
+	defines { "CURL_STATICLIB" }
+
 	-- Output directories
 	targetdir ("bin/" .. outdir)
 	objdir ("bin-int/" .. outdir)
@@ -129,17 +146,27 @@ project "launcher"
 		"deps/libs/%{cfg.architecture}/%{cfg.buildcfg}"
 	}
 
-	-- Clean up Finder's metadata, it causes issues with wildcards
-	filter "system:macosx"
-		prebuildcommands {
-			"../../scripts/kill_finder_meta.sh"
-		}
-
 	-- Link with stuff
 	links {
 		("curl" .. libpostfix),
 		("fmt" .. libpostfix)
 	}
+
+	-- Curl needs some extra stuff on Windows
+	filter "system:windows"
+		links {
+			"advapi32",
+			"crypt32",
+			"mswsock",
+			"wldap32",
+			"ws2_32"
+		}
+
+	-- Clean up Finder's metadata, it causes issues with wildcards
+	filter "system:macosx"
+		prebuildcommands {
+			"../../scripts/kill_finder_meta.sh"
+		}
 
 	-- Copy PDBs on Windows
 	filter { "system:windows", "configurations:debug or release" }
