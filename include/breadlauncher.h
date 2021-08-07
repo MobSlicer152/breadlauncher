@@ -45,4 +45,11 @@ namespace fs = std::filesystem;
 #define BREAD_OS_NAME "linux"
 #endif
 
+/* Convert time (imperfect for non-C++20 way, but good enough) */
+#ifdef _MSC_VER /* Oddly enough, MSVC is the first implementation to support this so far */
+#define CONVERT_TIME(time, source_clock, target_clock) (chrono::clock_cast<target_clock, source_clock>(time))
+#else
+#define CONVERT_TIME(time, source_clock, target_clock) (chrono::time_point_cast<target_clock::duration>(time - source_clock::now() + target_clock::now()))
+#endif
+
 #endif /* !BREADLAUNCHER_H */

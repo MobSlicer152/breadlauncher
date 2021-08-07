@@ -48,34 +48,39 @@ extern "C" int main(int argc, char *argv[])
 
 			/* Set the root directory */
 			root_dir = fs::absolute(argv[2]).generic_string();
-		} else if (strcmp(argv[1], "-help") == 0 ||
-			   strcmp(argv[1], "--help") == 0)
+		} else if (strcmp(argv[1], "-help") == 0 || strcmp(argv[1], "--help") == 0)
 			usage(argv[0]);
 	}
 
 	/* Make sure the root directory is set */
 	if (!root_dir.size()) {
 		root_dir = fs::absolute(".").generic_string();
-		if (!fs::is_empty(root_dir)) {
-			BREAD_LOG(
-				"Directory {} is not empty, using subfolder .breadlauncher\n\n",
-				root_dir);
+
+		/* Cut of /. at the end of the string */
+		if (root_dir.substr(root_dir.size() - 2, root_dir.size()) == "/.")
+			root_dir = root_dir.substr(0, root_dir.size() - 2);
+
+		if (!fs::is_empty(root_dir) && (fs::exists(".breadlauncher") && !fs::is_regular_file(".breadlauncher"))) {
+			BREAD_LOG("Directory {} is not empty, using subfolder .breadlauncher\n\n", root_dir);
 			root_dir += "/.breadlauncher";
 		}
 	}
 
-	/* Create the directories */
+	/* Create the launcher directory */
 	try {
 		fs::create_directory(root_dir);
-		fs::create_directory(root_dir + "/accounts");
-		fs::create_directory(root_dir + "/assets");
-		fs::create_directory(root_dir + "/libs");
-		fs::create_directory(root_dir + "/libs/native");
-		fs::create_directory(root_dir + "/versions");
+		
+		/* Make an indicator that this is a launcher folder */
+		std::fstream tmp;
+		tmp.open(root_dir + "/.breadlauncher");
+		tmp.close();
+
+		fs::create_directories(root_dir + "/accounts");
+		fs::create_directories(root_dir + "/assets/objects");
+		fs::create_directories(root_dir + "/libs/native");
+		fs::create_directories(root_dir + "/versions");
 	} catch (std::exception e) {
-		BREAD_LOG(
-			"Failed to create one or more directories for Minecraft: {}\n",
-			e.what());
+		BREAD_LOG("Failed to create one or more directories for Minecraft: {}\n", e.what());
 		quit(1);
 	}
 
@@ -83,9 +88,8 @@ extern "C" int main(int argc, char *argv[])
 	curl_global_init(CURL_GLOBAL_ALL);
 
 	/* Get the version manifest */
-	manifest_raw = get_file(
-		"https://launchermeta.mojang.com/mc/game/version_manifest.json",
-		root_dir + "/versions/version_manifest.json");
+	manifest_raw = get_file("https://launchermeta.mojang.com/mc/game/version_manifest.json",
+				root_dir + "/versions/version_manifest.json");
 
 	/* Parse the manifest */
 	manifest.Parse(manifest_raw.c_str());
@@ -95,26 +99,20 @@ extern "C" int main(int argc, char *argv[])
 	}
 
 	/* Check for the list of versions */
-	if (!manifest.HasMember("versions") ||
-	    !manifest["versions"].IsArray()) {
-		BREAD_LOG(
-			"Version manifest does not have a valid list of versions\n");
+	if (!manifest.HasMember("versions") || !manifest["versions"].IsArray()) {
+		BREAD_LOG("Version manifest does not have a valid list of versions\n");
 		quit(1);
 	}
 
 	/* Get the version (plain cin works because versions don't have spaces) */
 	std::cout << "\nEnter the version to run: ";
 	std::cin >> version_name;
-	if (tolower(version_name[0]) == 'q' ||
-	    tolower(version_name[0]) == 'e') {
+	if (tolower(version_name[0]) == 'q' || tolower(version_name[0]) == 'e') {
 		BREAD_LOG("Quitting.\n");
 		quit(0);
-	} else if (version_name == "latest" ||
-		   version_name == "latest-snapshot") {
+	} else if (version_name == "latest" || version_name == "latest-snapshot") {
 		version_name = manifest["latest"]["snapshot"].GetString();
-		BREAD_LOG(
-			"Using latest version (may be a release or a snapshot), which is {}\n",
-			version_name);
+		BREAD_LOG("Using latest version (may be a release or a snapshot), which is {}\n", version_name);
 	} else if (version_name == "latest-release") {
 		version_name = manifest["latest"]["release"].GetString();
 		BREAD_LOG("Using latest release, which is {}\n", version_name);
@@ -126,7 +124,21 @@ extern "C" int main(int argc, char *argv[])
 		quit(1);
 
 	/* Get the assets for this version */
-	BREAD_LOG()
+	std::string assets_dir = fmt::format("{}/assets/{}", root_dir, version_name);
+	std::string assets_def_path = fmt::format("{}/versions/{}/assets.json", root_dir, version_name);
+	std::string assets_def_raw;
+	rapidjson::Document assets_def;
+	if (!fs::exists(assets_def_path)) {
+		BREAD_LOG("Downloading one or more missing files for version {}\n", version_name);
+
+		/* Download the asset list */
+		assets_def_raw = get_file(version["assetIndex"]["url"].GetString(), assets_def_path);
+		if (!assets_def_raw.size())
+			quit(1);
+
+		/* Get the assets */
+		
+	}
 
 	/* Clean up and return */
 	curl_global_cleanup();
@@ -135,12 +147,11 @@ extern "C" int main(int argc, char *argv[])
 
 void usage(const std::string &argv0)
 {
-	fmt::format(
-		"{0} usage: {0} [options]\n"
-		"\t-d <directory>\tsets the directory to store data in\n"
-		"\t-help/--help\tshow this help\n"
-		"\nNote that any additional arguments will be passed to the JVM\n",
-		argv0);
+	fmt::format("{0} usage: {0} [options]\n"
+		    "\t-d <directory>\tsets the directory to store data in\n"
+		    "\t-help/--help\tshow this help\n"
+		    "\nNote that any additional arguments will be passed to the JVM\n",
+		    argv0);
 	quit(1);
 }
 
@@ -149,7 +160,7 @@ void quit(int code)
 	/* Pause until a key is pressed on Windows */
 	if (check_parent_is_console()) {
 		std::cout << "\nPress any key to exit...\n";
-		(void)getch_();
+		getch_();
 	}
 	exit(code);
 }

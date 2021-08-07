@@ -24,7 +24,7 @@ if os.target() == "windows" then
 elseif os.target() == "macosx" then
 	libpostfix = "-macos"
 elseif os.target() == "linux" then
-	libpostfix = "-linux"
+	libpostfix = ""
 else
 	libpostfix = "-" .. os.target()
 end
@@ -100,7 +100,7 @@ workspace "breadlauncher"
 			 os.target() ..
 			 " " ..
 			 _ACTION ..
-			 " && cd %{wks.location}/%{prj.name}")
+			 " && cd project/%{prj.name}")
 		}
 
 -- Main launcher project
@@ -133,18 +133,19 @@ project "launcher"
 		"include"
 	}
 
-	-- Add the dependency include folder on non-Linux systems (Linux is sane and has /usr/include, wereas other systems don't like consistency enough to be nice like that)
+	-- Add the dependency include folder on non-Linux systems (Linux is sane and has /usr/include, whereas other systems don't like consistency enough to be nice like that)
 	filter "system:not linux"
 		includedirs {
 			"deps/include"
 		}
 
-	-- Different levels for fat binaries and config-independant
-	libdirs {
-		"deps/libs",
-		"deps/libs/%{cfg.architecture}",
-		"deps/libs/%{cfg.architecture}/%{cfg.buildcfg}"
-	}
+		-- Different levels for macOS fat binaries and config-independant stuff
+		libdirs {
+			"deps/libs",
+			"deps/libs/%{cfg.architecture}",
+			"deps/libs/%{cfg.architecture}/%{cfg.buildcfg}"
+		}
+	filter {}
 
 	-- Link with stuff
 	links {

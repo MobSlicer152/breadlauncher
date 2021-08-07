@@ -21,11 +21,9 @@ extern "C" {
  * \param time is the time string to parse
  * \return Returns the time relative to the system clock
  */
-inline chrono::time_point<chrono::system_clock>
-parse_net_time(const std::string &time)
+inline chrono::time_point<chrono::system_clock> parse_net_time(const std::string &time)
 {
-	return chrono::system_clock::from_time_t(
-		curl_getdate(time.c_str(), nullptr));
+	return chrono::system_clock::from_time_t(curl_getdate(time.c_str(), nullptr));
 }
 
 /**
@@ -51,7 +49,6 @@ fs::file_time_type get_remote_mtime(const std::string &url);
  * \param target is the location to download the file to
  * \return Returns the contents of the file
  */
-std::string get_file(const std::string &url, const std::string &target,
-		     bool keep_contents = true, bool verbose = true);
+std::string get_file(const std::string &url, const std::string &target, bool keep_contents = true, bool verbose = true);
 
 #endif /* !CURL_UTIL_H */

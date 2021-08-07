@@ -98,9 +98,7 @@ bool check_parent_is_console(void)
 			return true;
 		}
 	}
+#endif
 
 	return false;
-#endif
-	/* On non-Windows this is irrelevant */
-	return true;
 }
